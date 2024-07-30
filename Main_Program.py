@@ -28,10 +28,11 @@ class CharacterMove:
 
     def update_attribute(self, name, data):
         """Searches for an attribute in the list of frame data traits and updates if
-            it's there, otherwise, it will print "not found"."""
+            it's there."""
         for attribute in self.frame_data:
             if attribute == name:
                 self.frame_data[attribute] = data
+                return
 
     def delete_attribute(self, name):
         """Removes an attribute from the list of frame data."""
@@ -134,6 +135,9 @@ class Fighter:
                 break
 
     def filter_character_moves(self, move_type, attribute):
+        """Method that handles the filtering interaction for when character frame data is displayed."""
+
+        # If no filter has been applied yet.
         if self._filtered_list is None:
             self._filtered_list = copy.deepcopy(self._character_moves)
 
@@ -142,9 +146,11 @@ class Fighter:
         lowest_attribute = None
         knockdown_list = []
 
+        # Loops through moves for loaded character, sorting them by the passed in attribute (descending).
         while len(filtered_list) < character_move_len:
             for move in self._character_moves[move_type][1]:
                 if move not in filtered_list:
+                    # Special case for moves that don't have a number for the on hit frames.
                     if move.frame_data[attribute] == 'Knockdown':
                         knockdown_list.append(move)
                         character_move_len -= 1
@@ -175,11 +181,11 @@ class Fighter:
 def main():
     app_on = True
 
-    while app_on:
+    intro = True
+    character_list = False
+    add_update_character = False
 
-        intro = True
-        character_list = False
-        add_update_character = False
+    while app_on:
 
         while intro:
             print("Welcome to my Frame Data program!  Here you can view the frame data for any available character. \n"
@@ -197,14 +203,17 @@ def main():
                 print('Please enter a number to proceed!')
                 continue
 
+            # Quits out of the app.
             if user_input == 3:
                 app_on = False
                 break
 
+            # Initializes developer update/add logic
             elif user_input == 2:
                 add_update_character = True
                 intro = False
 
+            # Initializes character frame data logic
             elif user_input == 1:
                 character_list = True
                 intro = False
@@ -284,30 +293,6 @@ def main():
                 elif user_input == '2' or user_input.lower().split()[0] == 'q':
                     character_list = False
 
-                elif user_input.lower().split()[0] == 'filter,':
-                    try:
-                        if len(user_input) == 3:
-                            user_input = [user_input[0], user_input[1] + ' ' + user_input[2]]
-
-                        if user_input[1] == 'active':
-                            print('To filter, select a category from this list: '
-                                  '"start up, recovery, on hit, on block". \n')
-
-                        elif user_input[1] == 'default':
-                            loaded_fighter.reset_filter()
-
-                        elif user_input[1] in loaded_fighter.get_character_moves()[0][1][0].frame_data:
-                            loaded_fighter.filter_character_moves(0, user_input[1])
-                            loaded_fighter.filter_character_moves(1, user_input[1])
-                            loaded_fighter.filter_character_moves(2, user_input[1])
-
-                        else:
-                            print('To filter, select a category from this list: '
-                                  '"start up, recovery, on hit, on block". \n')
-                    except IndexError:
-                        print('Please add a category to your request.')
-                        continue
-
                 else:
                     print('Please choose one of the listed options! \n')
             except IndexError:
@@ -315,7 +300,100 @@ def main():
                 continue
 
         while add_update_character:
-            break
+            dev_input = input('Would you like to add or update an existing character? \n'
+                              'Please enter "add" or "update". \n')
+
+            if dev_input == 'add':
+                new_char_input = input("What is this new character's name? \n")
+                new_char = Fighter(new_char_input)
+
+                while True:
+                    new_move_input = input('Please enter the next move: \n')
+
+                    new_move_confirm = input(f'Is "{new_move_input}" the move you want to add? ("y" or "n") \n')
+                    if new_move_confirm.lower() == 'y':
+                        new_char.add_character_move(new_move_input)
+                    else:
+                        continue
+
+                    new_move_done = input('Would you like to add another move? ("y" or "n") \n')
+
+                    if new_move_done == 'y':
+                        continue
+
+                    elif new_move_done == 'n':
+                        break
+
+                    else:
+                        print('Please enter "y" or "n".')
+
+                with open(f'{new_char_input}.pickle', 'wb') as file:
+                    pickle.dump(new_char, file)
+
+            elif dev_input == 'update':
+                update_input = input('Please choose the character you would like to update. (You can choose '
+                                     'their name or number!)\n 1. Ken \n 2. Quit \n')
+
+                if update_input == '1' or update_input.lower() == 'ken':
+                    try:
+                        with open('Ken.pickle', 'rb') as file:
+                            update_fighter = pickle.load(file)
+
+                    except FileNotFoundError:
+                        print("Character not found.")
+
+                    except pickle.UnpicklingError:
+                        print("There is currently an issue what that character's file.")
+
+                    while True:
+                        try:
+                            type_input = int(input('Please enter the number of the type of move you would like to '
+                                               'update \n 1. Attacks \n 2. Unique Attacks \n 3. Specials \n'))
+
+                            if int(type_input) == 1:
+                                update_fighter.show_character_moves('attacks', update_fighter.get_character_moves())
+
+                            elif int(type_input) == 2:
+                                update_fighter.show_character_moves('unique attacks',
+                                                                    update_fighter.get_character_moves())
+
+                            elif int(type_input) == 3:
+                                update_fighter.show_character_moves('specials', update_fighter.get_character_moves())
+
+                        except ValueError:
+                            print('Please enter the number associated with the move type.')
+                            continue
+
+                        while True:
+                            update_move_input = input('Which of the following moves would you like to update?\n')
+
+                            for move in update_fighter.get_character_moves()[type_input - 1][1]:
+                                if update_move_input == move.get_name():
+                                    print(
+                                        f'{move.get_name()}: Start Up - {move.get_attribute_data('start up')} '
+                                        f'| Active - '
+                                        f'{move.get_attribute_data('active')} | Recovery - '
+                                        f'{move.get_attribute_data('recovery')} | On Hit - '
+                                        f'{move.get_attribute_data('on hit')} '
+                                        f'| On Block - {move.get_attribute_data('on block')}')
+                                    change_input = input('Enter what you would like to change as '
+                                                         '"attribute" "new value"\n')
+                                    move.update_attribute(change_input.split()[0], change_input.split()[1])
+                                    print(
+                                        f'{move.get_name()}: Start Up - {move.get_attribute_data('start up')} '
+                                        f'| Active - '
+                                        f'{move.get_attribute_data('active')} | Recovery - '
+                                        f'{move.get_attribute_data('recovery')} | On Hit - '
+                                        f'{move.get_attribute_data('on hit')} '
+                                        f'| On Block - {move.get_attribute_data('on block')}')
+
+
+            elif dev_input.lower() == 'q':
+                intro = True
+                add_update_character = False
+
+            else:
+                print('Please enter either "add" or "update".  You can also type "q" to return to the previous menu.')
 
 
 if __name__ == '__main__':
