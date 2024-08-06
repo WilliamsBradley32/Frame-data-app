@@ -24,3 +24,4 @@ EXAMPLE:
 received_message = socket.recv_json()
 """
 
+![image](https://github.com/user-attachments/assets/7c707380-ab8a-4e1e-9efa-fed41e995cb2)
